@@ -1,0 +1,83 @@
+#!/usr/bin/env python
+
+import sys
+from argparse import ArgumentParser
+from datetime import date, datetime, time
+
+import tomllib
+
+
+def nix_value(x, tab: str, depth=1) -> str:
+    if isinstance(x, bool):
+        return str(x).lower()
+
+    if isinstance(x, (int, float)):
+        return str(x)
+
+    if isinstance(x, str):
+        if "\n" in x:
+            x = x.replace(r"''", r"'''")
+            return f"''\n{x}''"
+
+        x = x.replace(r'"', r"\"")
+        return f'"{x}"'
+
+    if isinstance(x, list):
+        entries = (nix_value(y, tab) for y in x)
+        entries = " ".join(entries)
+        return f"[ {entries} ]"
+
+    if isinstance(x, dict):
+        entries = (
+            (key, nix_value(value, depth=depth + 1, tab=tab))
+            for key, value in x.items()
+        )
+        entries = (f"{name} = {value};" for name, value in entries)
+        sep = "\n" + (tab * depth)
+        last_sep = "\n" + (tab * (depth - 1))
+        entries = sep.join(entries)
+        return f"{{{sep}{entries}{last_sep}}}"
+
+    if isinstance(x, (datetime, date, time)):
+        raise NotImplementedError(f"{x} is a datetime object which is not supported")
+
+    raise ValueError(
+        f"Got {x} which is of type {type(x)}, "
+        "according to the python docs this should not happen"
+    )
+
+
+def main():
+    parser = ArgumentParser(
+        prog="toml2nix",
+        description="Convert toml files to nix files",
+    )
+
+    parser.add_argument(
+        "filename",
+        help="The toml file to convert. If '-', read from stdin",
+    )
+
+    parser.add_argument(
+        "--tab",
+        help=r"The string used to represent a tab (default = '\t')",
+    )
+
+    args = parser.parse_args()
+
+    tab = args.tab if args.tab is not None else "\t"
+
+    if args.filename == "-":
+        file = sys.stdin.buffer.raw
+    else:
+        file = open(args.filename, "rb")
+
+    try:
+        toml = tomllib.load(file)
+        print(nix_value(toml, tab=tab))
+    finally:
+        file.close()
+
+
+if __name__ == "__main__":
+    main()
