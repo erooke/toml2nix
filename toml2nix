@@ -63,20 +63,32 @@ def main():
         help=r"The string used to represent a tab (default = '\t')",
     )
 
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="Where to write output (default = stdout)",
+    )
+
     args = parser.parse_args()
 
     tab = args.tab if args.tab is not None else "\t"
 
     if args.filename == "-":
-        file = sys.stdin.buffer
+        input_file = sys.stdin.buffer
     else:
-        file = open(args.filename, "rb")
+        input_file = open(args.filename, "rb")
+
+    if args.output is None:
+        output_file = sys.stdout.buffer
+    else:
+        output_file = open(args.output, "wb")
 
     try:
-        toml = tomllib.load(file)
-        print(nix_value(toml, tab=tab))
+        toml = tomllib.load(input_file)
+        output_file.write(nix_value(toml, tab=tab).encode())
     finally:
-        file.close()
+        input_file.close()
+        output_file.close()
 
 
 if __name__ == "__main__":
