@@ -23,7 +23,7 @@ def nix_value(x, tab: str, depth: int = 1) -> str:
         return f'"{x}"'
 
     if isinstance(x, list):
-        entries = (nix_value(y, tab) for y in x)
+        entries = (nix_value(y, tab, depth=depth) for y in x)
         entries = " ".join(entries)
         return f"[ {entries} ]"
 
