@@ -26,6 +26,7 @@
     devShells = forAllSystems (pkgs: {
       default = pkgs.mkShell {
         buildInputs = [
+          pkgs.just
           pkgs.python311
           pkgs.ruff
         ];
