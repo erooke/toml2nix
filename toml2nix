@@ -2,12 +2,12 @@
 
 import sys
 from argparse import ArgumentParser
-from datetime import date, datetime, time
+from datetime import date, time
 
 import tomllib
 
 
-def nix_value(x, tab: str, depth: int = 1) -> str:
+def nix_value(x, tab: str, parse: bool, depth: int = 1) -> str:
     if isinstance(x, bool):
         return str(x).lower()
 
@@ -23,13 +23,13 @@ def nix_value(x, tab: str, depth: int = 1) -> str:
         return f'"{x}"'
 
     if isinstance(x, list):
-        entries = (nix_value(y, tab, depth=depth) for y in x)
+        entries = (nix_value(y, tab, depth=depth, parse=parse) for y in x)
         entries = " ".join(entries)
         return f"[ {entries} ]"
 
     if isinstance(x, dict):
         entries = (
-            (key, nix_value(value, depth=depth + 1, tab=tab))
+            (key, nix_value(value, depth=depth + 1, tab=tab, parse=parse))
             for key, value in x.items()
         )
         entries = (f"{name} = {value};" for name, value in entries)
@@ -38,8 +38,18 @@ def nix_value(x, tab: str, depth: int = 1) -> str:
         entries = sep.join(entries)
         return f"{{{sep}{entries}{last_sep}}}"
 
-    if isinstance(x, (datetime, date, time)):
-        raise NotImplementedError(f"{x} is a datetime object which is not supported")
+    if isinstance(x, (date, time)):
+        if not parse:
+            raise ValueError(
+                f"{x} is of type {type(x)} which is not representable in nix. "
+                "To parse to an equivalent string use the --parse option"
+            )
+        # There seems to be no way to tell if the source used the T delimiter
+        # or a space delimiter (as permitted by RFC 3339 section 5.6) for the
+        # sake of readability we use a space. Additionally this clobbers a Z
+        # suffix to be +00:00. These are semantically equivalent but a tad
+        # ugly.
+        return f'"{x}"'
 
     raise ValueError(
         f"Got {x} which is of type {type(x)}, "
@@ -60,13 +70,20 @@ def main():
 
     parser.add_argument(
         "--tab",
-        help=r"The string used to represent a tab (default = '\t')",
+        help=r"The string used to represent a tab (default '\t')",
     )
 
     parser.add_argument(
         "-o",
         "--output",
-        help="Where to write output (default = stdout)",
+        help="Where to write output (default stdout)",
+    )
+
+    parser.add_argument(
+        "-p",
+        "--parse",
+        action="store_true",
+        help="Parse datetimes to strings (default false)",
     )
 
     args = parser.parse_args()
@@ -85,7 +102,10 @@ def main():
 
     try:
         toml = tomllib.load(input_file)
-        output_file.write(nix_value(toml, tab=tab).encode())
+        output_file.write(nix_value(toml, tab=tab, parse=args.parse).encode())
+    except ValueError as e:
+        print(e)
+        exit(1)
     finally:
         input_file.close()
         output_file.close()
