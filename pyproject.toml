@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "toml2nix"
+version = "1.0.0"
+description = "Convert toml files to nix files"
+readme = "readme.md"
+requires-python = ">=3.11"
+license = { text = "ISC" }
+
+[project.scripts]
+toml2nix = "toml2nix:main" # Assuming script.py has a 'main' function
